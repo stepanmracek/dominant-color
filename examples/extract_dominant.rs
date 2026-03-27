@@ -1,4 +1,4 @@
-use dominant_color::{Settings, dominant_color};
+use dominant_color_rs::{Settings, dominant_color};
 use std::env;
 
 fn main() {

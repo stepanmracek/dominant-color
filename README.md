@@ -15,7 +15,7 @@ This library calculates the dominant color of an image by:
 ### Simple Example
 
 ```rust
-use dominant_color::{Settings, dominant_color};
+use dominant_color_rs::{Settings, dominant_color};
 
 fn main() {
     let img = image::open("path/to/image.jpg").expect("Failed to open image");
