@@ -1,5 +1,5 @@
 [package]
-name = "dominant-color"
+name = "dominant-color-rs"
 version = "0.1.0"
 edition = "2024"
 description = "A library to extract the most dominant color from an image using K-Means clustering and silhouette scoring."
