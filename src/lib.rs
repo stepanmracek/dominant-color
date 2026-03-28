@@ -152,8 +152,8 @@ pub fn saturation(point: &[f32; 3]) -> f32 {
         .iter()
         .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
         .unwrap_or(&0.0);
-    let delta = max - min;
-    if *max == 0.0 { 0.0 } else { delta / *max }
+
+    max - min
 }
 
 pub struct Settings {
@@ -174,10 +174,7 @@ impl Default for Settings {
     }
 }
 
-/// Calculates the dominant color of an image.
-///
-/// Returns the RGB color as `[f32; 3]` where each component is in the range `[0.0, 1.0]`
-pub fn dominant_color(img: &DynamicImage, settings: &Settings) -> Option<[f32; 3]> {
+fn dominant_colors_private(img: &DynamicImage, settings: &Settings) -> Vec<([f32; 3], f32)> {
     let resized = image::imageops::resize(
         img,
         settings.img_size,
@@ -217,22 +214,63 @@ pub fn dominant_color(img: &DynamicImage, settings: &Settings) -> Option<[f32; 3
                 .partial_cmp(score2)
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
-        .map(|(_, kmeans_result)| kmeans_result)?;
+        .map(|(_, kmeans_result)| kmeans_result);
 
-    // dominant color is centroid of non-empty cluster having the highest saturation
-    std::iter::zip(
-        kmeans_result.centroids.iter(),
-        kmeans_result.clusters.iter(),
-    )
-    .filter(|(_centroid, cluster)| !cluster.is_empty())
-    .map(|(centroid, _cluster)| (centroid, saturation(centroid)))
-    .max_by(|(_, sat1), (_, sat2)| sat1.partial_cmp(sat2).unwrap_or(std::cmp::Ordering::Equal))
-    .map(|(centroid, _)| *centroid)
+    match kmeans_result {
+        Some(kmeans_result) => std::iter::zip(
+            kmeans_result.centroids.iter(),
+            kmeans_result.clusters.iter(),
+        )
+        .filter(|(_centroid, cluster)| !cluster.is_empty())
+        .map(|(centroid, _cluster)| (*centroid, saturation(centroid)))
+        .collect(),
+        None => vec![],
+    }
+}
+
+/// Calculates the dominant colors of an image.
+///
+/// Returns the vector of RGB colors represented as `[f32; 3]`
+/// where each component is in the range `[0.0, 1.0]`
+pub fn dominant_colors(img: &DynamicImage, settings: &Settings) -> Vec<[f32; 3]> {
+    let mut centroids_and_saturations = dominant_colors_private(img, settings);
+
+    // sort clusters by their saturation value (descending)
+    centroids_and_saturations.sort_by(|(_, sat1), (_, sat2)| {
+        sat2.partial_cmp(sat1).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // return just the centroid colors
+    centroids_and_saturations
+        .into_iter()
+        .map(|(centroid, _)| centroid)
+        .collect()
+}
+
+/// Calculates the dominant color of an image.
+///
+/// Returns the RGB color as `[f32; 3]` where each component is in the range `[0.0, 1.0]`
+pub fn dominant_color(img: &DynamicImage, settings: &Settings) -> Option<[f32; 3]> {
+    // dominant color is centroid having the highest saturation
+    dominant_colors_private(img, settings)
+        .into_iter()
+        .max_by(|(_, sat1), (_, sat2)| sat1.partial_cmp(sat2).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(centroid, _)| centroid)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_saturation_chroma() {
+        let dark_red = [4.0 / 255.0, 2.0 / 255.0, 2.0 / 255.0];
+        let vivid_red = [187.0 / 255.0, 78.0 / 255.0, 69.0 / 255.0];
+
+        let sat_dark = saturation(&dark_red);
+        let sat_vivid = saturation(&vivid_red);
+        assert!(sat_vivid > sat_dark);
+    }
 
     #[test]
     fn test() {

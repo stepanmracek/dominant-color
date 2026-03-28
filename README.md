@@ -40,7 +40,7 @@ fn main() {
 You can tune the performance and accuracy by modifying the `Settings` struct:
 
 ```rust
-use dominant_color::{Settings, dominant_color};
+use dominant_color_rs::Settings;
 
 let settings = Settings {
     img_size: 128,      // Internal resize dimension (default: 72)

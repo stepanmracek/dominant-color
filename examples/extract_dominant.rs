@@ -1,4 +1,4 @@
-use dominant_color_rs::{Settings, dominant_color};
+use dominant_color_rs::{Settings, dominant_colors};
 use std::env;
 
 fn main() {
@@ -17,19 +17,23 @@ fn main() {
         }
     };
 
-    if let Some(color) = dominant_color(&img, &Settings::default()) {
-        println!("Dominant color found!");
-        println!(
-            "RGB (0.0 - 1.0): [{:.3}, {:.3}, {:.3}]",
-            color[0], color[1], color[2]
-        );
-        println!(
-            "RGB (0 - 255):   [{}, {}, {}]",
-            (color[0] * 255.0).round() as u8,
-            (color[1] * 255.0).round() as u8,
-            (color[2] * 255.0).round() as u8
-        );
+    let colors = dominant_colors(&img, &Settings::default());
+    if !colors.is_empty() {
+        println!("Dominant colors found (sorted by saturation):");
+        for (i, color) in colors.iter().enumerate() {
+            println!("Color #{}", i + 1);
+            println!(
+                "  RGB (0.0 - 1.0): [{:.3}, {:.3}, {:.3}]",
+                color[0], color[1], color[2]
+            );
+            println!(
+                "  RGB (0 - 255):   [{}, {}, {}]",
+                (color[0] * 255.0).round() as u8,
+                (color[1] * 255.0).round() as u8,
+                (color[2] * 255.0).round() as u8
+            );
+        }
     } else {
-        println!("Could not determine a dominant color for the image.");
+        println!("Could not determine dominant colors for the image.");
     }
 }
