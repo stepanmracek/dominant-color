@@ -2,11 +2,20 @@ use image::{DynamicImage, Pixel};
 use rand::seq::IndexedRandom;
 use std::ops::RangeInclusive;
 
+/// Result of a K-Means clustering operation.
 pub struct KMeansResult<const DIMS: usize> {
+    /// The computed centroids for each cluster.
     pub centroids: Vec<[f32; DIMS]>,
+    /// The indices of the data points assigned to each cluster.
     pub clusters: Vec<Vec<usize>>,
 }
 
+/// Calculates the silhouette score for a clustering result.
+///
+/// The silhouette score is a measure of how similar an object is to its own cluster
+/// compared to other clusters. The score ranges from -1 to 1, where a high value
+/// indicates that the object is well matched to its own cluster and poorly matched
+/// to neighboring clusters.
 pub fn silhouette_score<const DIMS: usize, F>(
     data: &[[f32; DIMS]],
     result: &KMeansResult<DIMS>,
@@ -44,12 +53,14 @@ where
     s.iter().sum::<f32>() / data.len() as f32
 }
 
+/// Calculates the squared Euclidean distance between two points.
 pub fn eucl_distance_squared(first: &[f32], second: &[f32]) -> f32 {
     std::iter::zip(first, second)
         .map(|(a, b)| (a - b).powi(2))
         .sum()
 }
 
+/// Calculates the Euclidean distance between two points.
 pub fn eucl_distance(first: &[f32], second: &[f32]) -> f32 {
     eucl_distance_squared(first, second).sqrt()
 }
@@ -99,6 +110,13 @@ fn centroids_eq<const DIMS: usize>(
     std::iter::zip(first, second).all(|(a, b)| array_eq(a, b, eps))
 }
 
+/// Performs K-Means clustering on the provided data.
+///
+/// * `data`: The data points to cluster.
+/// * `k`: The number of clusters to find.
+/// * `distance`: A function that calculates the distance between two points.
+/// * `max_iters`: The maximum number of iterations to perform.
+/// * `eps`: The convergence threshold. If the centroids move by less than this amount, the algorithm stops.
 pub fn kmeans<const DIMS: usize, F>(
     data: &[[f32; DIMS]],
     k: usize,
@@ -143,6 +161,9 @@ where
     }
 }
 
+/// Calculates the saturation (chroma) of an RGB color.
+///
+/// Expected input is an RGB array where each component is in the range `[0.0, 1.0]`.
 pub fn saturation(point: &[f32; 3]) -> f32 {
     let max = point
         .iter()
@@ -156,10 +177,15 @@ pub fn saturation(point: &[f32; 3]) -> f32 {
     max - min
 }
 
+/// Settings for dominant color extraction.
 pub struct Settings {
+    /// The size (width and height) to which the image will be resized before processing.
     pub img_size: u32,
+    /// The range of cluster counts (k) to try. The one with the best silhouette score will be chosen.
     pub clusters: RangeInclusive<usize>,
+    /// Maximum iterations for K-Means.
     pub max_iters: usize,
+    /// Convergence threshold for K-Means.
     pub eps: f32,
 }
 
@@ -230,8 +256,9 @@ fn dominant_colors_private(img: &DynamicImage, settings: &Settings) -> Vec<([f32
 
 /// Calculates the dominant colors of an image.
 ///
-/// Returns the vector of RGB colors represented as `[f32; 3]`
-/// where each component is in the range `[0.0, 1.0]`
+/// Returns a vector of RGB colors represented as `[f32; 3]`,
+/// where each component is in the range `[0.0, 1.0]`.
+/// The colors are sorted by saturation in descending order.
 pub fn dominant_colors(img: &DynamicImage, settings: &Settings) -> Vec<[f32; 3]> {
     let mut centroids_and_saturations = dominant_colors_private(img, settings);
 
@@ -249,7 +276,8 @@ pub fn dominant_colors(img: &DynamicImage, settings: &Settings) -> Vec<[f32; 3]>
 
 /// Calculates the dominant color of an image.
 ///
-/// Returns the RGB color as `[f32; 3]` where each component is in the range `[0.0, 1.0]`
+/// The dominant color is chosen as the cluster centroid with the highest saturation.
+/// Returns the RGB color as `[f32; 3]` where each component is in the range `[0.0, 1.0]`.
 pub fn dominant_color(img: &DynamicImage, settings: &Settings) -> Option<[f32; 3]> {
     // dominant color is centroid having the highest saturation
     dominant_colors_private(img, settings)
