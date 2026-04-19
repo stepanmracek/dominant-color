@@ -62,6 +62,10 @@ The library comes with several built-in examples. You can run them using `cargo 
   ```bash
   cargo run --example extract_directory ./testimg
   ```
+- `egui_viewer`: Interactive GUI viewer to explore the impact of settings on the resulting dominant colors.
+  ```bash
+  cargo run --example egui_viewer
+  ```
 
 ## License
 
