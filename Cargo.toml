@@ -12,6 +12,7 @@ categories = ["multimedia::images", "algorithms"]
 [dependencies]
 image = "0.25.10"
 rand = "0.10.0"
+palette = "0.7.6"
 
 [dev-dependencies]
 eframe = "0.34.1"

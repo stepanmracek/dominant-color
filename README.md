@@ -40,7 +40,7 @@ fn main() {
 You can tune the performance and accuracy by modifying the `Settings` struct:
 
 ```rust
-use dominant_color_rs::{Settings, KMeansInit};
+use dominant_color_rs::{Settings, KMeansInit, ColorSpace};
 
 let settings = Settings {
     img_size: 128,      // Internal resize dimension (default: 72)
@@ -48,8 +48,13 @@ let settings = Settings {
     max_iters: 200,     // Max iterations for K-Means (default: 100)
     eps: 1e-7,          // Convergence threshold (default: 1e-6)
     init: KMeansInit::KMeansPlusPlus, // Initialization method (default: KMeansPlusPlus)
+    color_space: ColorSpace::Oklab,   // Perceptually uniform clustering (default: Oklab)
 };
 ```
+
+**Color Spaces:**
+- `ColorSpace::Oklab` (Default): Clusters colors in a perceptually uniform space.
+- `ColorSpace::Rgb`: Raw sRGB space clustering. Slightly faster but not perceptually accurate.
 
 ## Examples
 
@@ -67,7 +72,7 @@ The library comes with several built-in examples. You can run them using `cargo 
   ```bash
   cargo run --example egui_viewer
   ```
-- `benchmark`: Compare the performance and stability between K-Means++ and Standard Random centroid initialization.
+- `benchmark`: Compare the performance and stability between K-Means initialization methods and clustering color spaces (RGB vs Oklab).
   ```bash
   cargo run --release --example benchmark
   ```

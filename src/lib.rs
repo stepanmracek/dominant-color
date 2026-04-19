@@ -1,4 +1,5 @@
 use image::{DynamicImage, Pixel};
+use palette::{FromColor, Oklab, Srgb};
 use rand::distr::{Distribution, weighted::WeightedIndex};
 use rand::seq::IndexedRandom;
 use std::ops::RangeInclusive;
@@ -234,6 +235,15 @@ pub enum KMeansInit {
     KMeansPlusPlus,
 }
 
+/// Color space used for K-Means clustering.
+#[derive(Clone, Copy, PartialEq)]
+pub enum ColorSpace {
+    /// Standard RGB color space. Faster but not perceptually uniform.
+    Rgb,
+    /// Oklab color space. Perceptually uniform, producing more accurate visual clusters.
+    Oklab,
+}
+
 /// Settings for dominant color extraction.
 pub struct Settings {
     /// The size (width and height) to which the image will be resized before processing.
@@ -246,6 +256,8 @@ pub struct Settings {
     pub eps: f32,
     /// Initialization method.
     pub init: KMeansInit,
+    /// Color space to use for clustering.
+    pub color_space: ColorSpace,
 }
 
 impl Default for Settings {
@@ -256,6 +268,7 @@ impl Default for Settings {
             max_iters: 100,
             eps: 1e-6,
             init: KMeansInit::KMeansPlusPlus,
+            color_space: ColorSpace::Oklab,
         }
     }
 }
@@ -272,7 +285,22 @@ fn dominant_colors_private(img: &DynamicImage, settings: &Settings) -> Vec<([f32
         .pixels()
         .map(|pixel| {
             let rgb = pixel.to_rgb();
-            rgb.0.map(|v| (v as f32) / 255.0)
+            match settings.color_space {
+                ColorSpace::Rgb => [
+                    rgb.0[0] as f32 / 255.0,
+                    rgb.0[1] as f32 / 255.0,
+                    rgb.0[2] as f32 / 255.0,
+                ],
+                ColorSpace::Oklab => {
+                    let srgb = Srgb::new(
+                        rgb.0[0] as f32 / 255.0,
+                        rgb.0[1] as f32 / 255.0,
+                        rgb.0[2] as f32 / 255.0,
+                    );
+                    let lab = Oklab::from_color(srgb);
+                    [lab.l, lab.a, lab.b]
+                }
+            }
         })
         .collect();
 
@@ -309,7 +337,22 @@ fn dominant_colors_private(img: &DynamicImage, settings: &Settings) -> Vec<([f32
             kmeans_result.clusters.iter(),
         )
         .filter(|(_centroid, cluster)| !cluster.is_empty())
-        .map(|(centroid, _cluster)| (*centroid, saturation(centroid)))
+        .map(|(centroid, _cluster)| match settings.color_space {
+            ColorSpace::Rgb => (*centroid, saturation(centroid)),
+            ColorSpace::Oklab => {
+                let lab = Oklab::new(centroid[0], centroid[1], centroid[2]);
+                let rgb = Srgb::from_color(lab);
+                let chroma = (centroid[1].powi(2) + centroid[2].powi(2)).sqrt();
+                (
+                    [
+                        rgb.red.clamp(0.0, 1.0),
+                        rgb.green.clamp(0.0, 1.0),
+                        rgb.blue.clamp(0.0, 1.0),
+                    ],
+                    chroma,
+                )
+            }
+        })
         .collect(),
         None => vec![],
     }

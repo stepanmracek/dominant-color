@@ -1,4 +1,4 @@
-use dominant_color_rs::{KMeansInit, Settings, dominant_colors};
+use dominant_color_rs::{ColorSpace, KMeansInit, Settings, dominant_colors};
 use eframe::egui;
 use std::path::PathBuf;
 
@@ -200,6 +200,23 @@ impl eframe::App for App {
                 }
                 if ui
                     .radio_value(&mut self.settings.init, KMeansInit::Random, "Random")
+                    .changed()
+                {
+                    self.refresh_colors(ctx.clone());
+                }
+            });
+
+            ui.add_space(8.0);
+            ui.label("Color Space:");
+            ui.horizontal(|ui| {
+                if ui
+                    .radio_value(&mut self.settings.color_space, ColorSpace::Oklab, "Oklab")
+                    .changed()
+                {
+                    self.refresh_colors(ctx.clone());
+                }
+                if ui
+                    .radio_value(&mut self.settings.color_space, ColorSpace::Rgb, "RGB")
                     .changed()
                 {
                     self.refresh_colors(ctx.clone());
