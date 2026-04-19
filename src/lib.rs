@@ -1,4 +1,5 @@
 use image::{DynamicImage, Pixel};
+use rand::distr::{Distribution, weighted::WeightedIndex};
 use rand::seq::IndexedRandom;
 use std::ops::RangeInclusive;
 
@@ -110,6 +111,53 @@ fn centroids_eq<const DIMS: usize>(
     std::iter::zip(first, second).all(|(a, b)| array_eq(a, b, eps))
 }
 
+fn initialize_centroids<const DIMS: usize, F>(
+    data: &[[f32; DIMS]],
+    k: usize,
+    distance: &F,
+    init: KMeansInit,
+) -> Vec<[f32; DIMS]>
+where
+    F: Fn(&[f32], &[f32]) -> f32,
+{
+    let mut rng = rand::rng();
+
+    let mut centroids = Vec::with_capacity(k);
+    if !data.is_empty() && k > 0 {
+        match init {
+            KMeansInit::Random => {
+                centroids = data.sample(&mut rng, k).cloned().collect();
+            }
+            KMeansInit::KMeansPlusPlus => {
+                // 1. Choose first centroid uniformly at random
+                centroids.push(*data.choose(&mut rng).expect("Data is not empty"));
+
+                // 2. Choose remaining k-1 centroids
+                for _ in 1..k {
+                    let weights: Vec<f64> = data
+                        .iter()
+                        .map(|point| {
+                            centroids
+                                .iter()
+                                .map(|c| distance(c, point))
+                                .min_by(|a, b| a.total_cmp(b))
+                                .unwrap_or(0.0) as f64
+                        })
+                        .collect();
+
+                    if let Ok(dist) = WeightedIndex::new(&weights) {
+                        centroids.push(data[dist.sample(&mut rng)]);
+                    } else {
+                        // If all weights are 0 or valid indices cannot be created, pick randomly
+                        centroids.push(*data.choose(&mut rng).expect("Data is not empty"));
+                    }
+                }
+            }
+        }
+    }
+    centroids
+}
+
 /// Performs K-Means clustering on the provided data.
 ///
 /// * `data`: The data points to cluster.
@@ -123,12 +171,12 @@ pub fn kmeans<const DIMS: usize, F>(
     distance: F,
     max_iters: usize,
     eps: f32,
+    init: KMeansInit,
 ) -> KMeansResult<DIMS>
 where
     F: Fn(&[f32], &[f32]) -> f32,
 {
-    let mut rng = rand::rng();
-    let mut centroids = data.sample(&mut rng, k).cloned().collect::<Vec<_>>();
+    let mut centroids = initialize_centroids(data, k, &distance, init);
 
     let mut clusters: Vec<Vec<usize>> = vec![vec![]; k];
     for _i in 0..max_iters {
@@ -177,6 +225,15 @@ pub fn saturation(point: &[f32; 3]) -> f32 {
     max - min
 }
 
+/// Initialization method for K-Means.
+#[derive(Clone, Copy, PartialEq)]
+pub enum KMeansInit {
+    /// Standard random initialization.
+    Random,
+    /// K-Means++ initialization for better convergence.
+    KMeansPlusPlus,
+}
+
 /// Settings for dominant color extraction.
 pub struct Settings {
     /// The size (width and height) to which the image will be resized before processing.
@@ -187,6 +244,8 @@ pub struct Settings {
     pub max_iters: usize,
     /// Convergence threshold for K-Means.
     pub eps: f32,
+    /// Initialization method.
+    pub init: KMeansInit,
 }
 
 impl Default for Settings {
@@ -196,6 +255,7 @@ impl Default for Settings {
             clusters: 2..=6,
             max_iters: 100,
             eps: 1e-6,
+            init: KMeansInit::KMeansPlusPlus,
         }
     }
 }
@@ -227,6 +287,7 @@ fn dominant_colors_private(img: &DynamicImage, settings: &Settings) -> Vec<([f32
                 eucl_distance_squared,
                 settings.max_iters,
                 settings.eps,
+                settings.init,
             )
         })
         .map(|kmeans_result| {

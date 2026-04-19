@@ -1,4 +1,4 @@
-use dominant_color_rs::{Settings, dominant_colors};
+use dominant_color_rs::{KMeansInit, Settings, dominant_colors};
 use eframe::egui;
 use std::path::PathBuf;
 
@@ -101,8 +101,10 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::left("settings_panel").show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+
+        egui::Panel::left("settings_panel").show_inside(ui, |ui| {
             ui.heading("Image Selection");
             ui.add_space(8.0);
             if !self.images.is_empty() {
@@ -183,13 +185,34 @@ impl eframe::App for App {
                 self.refresh_colors(ctx.clone());
             }
 
+            ui.add_space(8.0);
+            ui.label("Initialization Method:");
+            ui.horizontal(|ui| {
+                if ui
+                    .radio_value(
+                        &mut self.settings.init,
+                        KMeansInit::KMeansPlusPlus,
+                        "K-Means++",
+                    )
+                    .changed()
+                {
+                    self.refresh_colors(ctx.clone());
+                }
+                if ui
+                    .radio_value(&mut self.settings.init, KMeansInit::Random, "Random")
+                    .changed()
+                {
+                    self.refresh_colors(ctx.clone());
+                }
+            });
+
             if let Some(error) = &self.error_message {
                 ui.add_space(16.0);
                 ui.colored_label(egui::Color32::RED, error);
             }
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("Dominant Colors");
                 if let Some(duration) = self.computation_time {

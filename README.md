@@ -40,13 +40,14 @@ fn main() {
 You can tune the performance and accuracy by modifying the `Settings` struct:
 
 ```rust
-use dominant_color_rs::Settings;
+use dominant_color_rs::{Settings, KMeansInit};
 
 let settings = Settings {
     img_size: 128,      // Internal resize dimension (default: 72)
     clusters: 2..=10,   // Range of K values to test (default: 2..=6)
     max_iters: 200,     // Max iterations for K-Means (default: 100)
     eps: 1e-7,          // Convergence threshold (default: 1e-6)
+    init: KMeansInit::KMeansPlusPlus, // Initialization method (default: KMeansPlusPlus)
 };
 ```
 
@@ -65,6 +66,10 @@ The library comes with several built-in examples. You can run them using `cargo 
 - `egui_viewer`: Interactive GUI viewer to explore the impact of settings on the resulting dominant colors.
   ```bash
   cargo run --example egui_viewer
+  ```
+- `benchmark`: Compare the performance and stability between K-Means++ and Standard Random centroid initialization.
+  ```bash
+  cargo run --release --example benchmark
   ```
 
 ## License
